@@ -1,7 +1,7 @@
 [project]
 name = "tool-capability-compiler"
 version = "0.1.0"
-description = "A typed dependency graph runtime for composable tools"
+description = "A layered tool-routing and topology optimization framework for AI agents"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = []

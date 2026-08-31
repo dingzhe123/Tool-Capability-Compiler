@@ -1,53 +1,69 @@
 # Tool Capability Compiler
 
-A typed dependency graph runtime for composable tools.
+一个面向智能体工具调用的分层路由与拓扑优化框架。
 
-当前 MVP 验证一个核心假设：Tool 只声明精确类型的 `consumes / produces` 后，系统可以自动建图，从目标 Artifact 反向编译出最小 DAG，并执行该 DAG。它不依赖 LLM、MCP、Web 框架或人工编排的 Pipeline。
+项目不替开发者手工编排一条固定 Workflow，也不根据输入输出类型编译所谓“最小依赖 DAG”。开发者声明一个允许的工具搜索空间，后续由业务场景回归探索路线、评估效果，并让 Active Topology 逐步收敛。
+
+```text
+Declare → Initialize → Explore → Evaluate → Prune → Rank → Route
+```
+
+当前 Phase 1 只实现 `Declare → Initialize`：
+
+- 有序 Layer 与 Tool Registry
+- `provider / worker` 双向白名单
+- 相邻层默认全连接
+- 确定性的 Declared Topology
+- Schema 可执行性告警，不以 Schema 建边
+- 支持一层多个节点的 RoutePlan 及拓扑约束校验
 
 ## Quick start
 
 ```python
-import asyncio
-from dataclasses import dataclass
-
 from capability_runtime import (
-    DependencyGraphBuilder, Goal, Planner, Runtime, ToolRegistry, tool,
+    LayerRegistry, RoutePlan, ToolRegistry, TopologyBuilder, tool,
 )
 
-@dataclass(frozen=True)
-class Number:
-    value: int
+@tool(layer="read", workers=["policy_check"])
+async def database(): ...
 
-@dataclass(frozen=True)
-class Doubled:
-    value: int
+@tool(
+    layer="analyze",
+    providers=["database"],
+    workers=["refund"],
+)
+async def policy_check(): ...
 
-@tool(consumes=[Number], produces=[Doubled])
-async def double(number: Number) -> Doubled:
-    return Doubled(number.value * 2)
+@tool(layer="act", providers=["policy_check"])
+async def refund(): ...
 
-registry = ToolRegistry()
-registry.register(double)
+layers = LayerRegistry()
+layers.register("read", 0)
+layers.register("analyze", 1)
+layers.register("act", 2)
 
-graph = DependencyGraphBuilder(registry).build()
-plan = Planner(graph).plan(Goal.of(Doubled), available_inputs={Number})
+tools = ToolRegistry()
+for node in (database, policy_check, refund):
+    tools.register(node)
 
-print(plan.explain())
-result = asyncio.run(Runtime(registry).execute(plan, {Number: Number(21)}))
-assert result == Doubled(42)
+topology = TopologyBuilder(layers, tools).build()
+route = RoutePlan.from_groups(
+    topology,
+    [{"database"}, {"policy_check"}, {"refund"}],
+)
+print(route.explain())
 ```
 
-## MVP capabilities
+建边公式：
 
-- 精确 Python 类型作为 Artifact identity
-- async Python Tool decorator 与单输出 contract
-- Producer 索引及自动依赖边
-- Goal-driven backward planning 与无关 Tool 剪枝
-- 多 Provider 按 `priority DESC, name ASC` 确定性选择
-- 不可达高优先级 Provider 自动回退
-- Cycle detection、Artifact conflict 和领域异常
-- 确定性拓扑排序、Artifact 传播与输出校验
-- `plan.explain()` 及 Graph inspect API
+```text
+Edge(A, B)
+= adjacent(layer(A), layer(B))
+  AND A.workers allows B
+  AND B.providers allows A
+```
+
+`consumes / produces` 仍可声明，但只验证已允许边的 Schema 是否明显不匹配。业务意图决定拓扑，Schema 负责诊断。
 
 ## Develop
 
@@ -57,4 +73,4 @@ python -m pip install -e .
 python main.py
 ```
 
-架构约束见 [Phase 0](docs/acceptance/phase0.md)，MVP 验收规格见 [Phase 1](docs/acceptance/phase1.md)。
+项目原则见 [Phase 0](docs/acceptance/phase0.md)，当前 MVP 验收规格见 [Phase 1](docs/acceptance/phase1.md)。
