@@ -6,6 +6,10 @@ class RegistrationError(TopologyFrameworkError):
     pass
 
 
+class InvalidCapabilityError(RegistrationError):
+    pass
+
+
 class DuplicateLayerError(RegistrationError):
     pass
 
@@ -31,4 +35,16 @@ class InvalidTopologyReferenceError(TopologyBuildError):
 
 
 class RouteValidationError(TopologyFrameworkError):
+    pass
+
+
+class ScenarioError(TopologyFrameworkError):
+    pass
+
+
+class ScenarioLoadError(ScenarioError):
+    pass
+
+
+class ScenarioValidationError(ScenarioError):
     pass

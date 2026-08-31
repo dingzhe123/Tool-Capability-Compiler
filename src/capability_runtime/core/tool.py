@@ -37,6 +37,7 @@ class ToolSpec:
     layer: str
     providers: NodeSelector
     workers: NodeSelector
+    capabilities: frozenset[str] = frozenset()
     consumes: tuple[type, ...] = ()
     produces: tuple[type, ...] = ()
     description: str = ""

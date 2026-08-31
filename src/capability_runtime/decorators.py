@@ -4,6 +4,7 @@ import inspect
 from collections.abc import Awaitable, Callable, Iterable
 from typing import Any
 
+from .core.capability import validate_capability_name
 from .core.errors import RegistrationError
 from .core.tool import NodeSelector, SelectorInput, ToolNode, ToolSpec
 
@@ -13,6 +14,7 @@ def tool(
     layer: str,
     providers: SelectorInput = "all",
     workers: SelectorInput = "all",
+    capabilities: Iterable[str] = (),
     consumes: Iterable[type] = (),
     produces: Iterable[type] = (),
     name: str | None = None,
@@ -22,6 +24,9 @@ def tool(
 
     consume_types = tuple(consumes)
     produce_types = tuple(produces)
+    capability_names = frozenset(
+        validate_capability_name(item) for item in capabilities
+    )
     if not layer.strip():
         raise RegistrationError("Tool layer cannot be empty")
     if any(not isinstance(item, type) for item in (*consume_types, *produce_types)):
@@ -57,6 +62,7 @@ def tool(
                 layer=layer,
                 providers=provider_selector,
                 workers=worker_selector,
+                capabilities=capability_names,
                 consumes=consume_types,
                 produces=produce_types,
                 description=description.strip(),
