@@ -1,0 +1,24 @@
+{
+  "version": "1.0",
+  "name": "refund-regression",
+  "description": "Refund capability coverage scenarios",
+  "scenarios": [
+    {
+      "id": "refund_001",
+      "query": "查询订单123是否可以退款",
+      "category": "refund",
+      "expected_capabilities": [
+        "order.read",
+        "refund.policy.check"
+      ],
+      "metadata": {
+        "priority": "high"
+      }
+    },
+    {
+      "id": "refund_002",
+      "query": "这个订单还能退款吗？",
+      "category": "refund"
+    }
+  ]
+}
