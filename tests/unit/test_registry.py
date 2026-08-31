@@ -1,50 +1,36 @@
-from dataclasses import dataclass
-
 import pytest
 
 from capability_runtime import (
-    ArtifactKey,
+    DuplicateLayerError,
     DuplicateToolError,
-    ToolNotFoundError,
+    LayerRegistry,
     ToolRegistry,
     tool,
 )
 
 
-@dataclass(frozen=True)
-class Value:
-    value: str
+@tool(layer="read")
+async def reader():
+    return None
 
 
-@tool(produces=[Value], priority=1)
-async def make_value() -> Value:
-    return Value("a")
+def test_layer_registry_is_ordered_and_unique() -> None:
+    layers = LayerRegistry()
+    layers.register("analyze", 1)
+    layers.register("read", 0)
+    assert [layer.name for layer in layers.all()] == ["read", "analyze"]
+
+    with pytest.raises(DuplicateLayerError):
+        layers.register("read", 2)
+    with pytest.raises(DuplicateLayerError):
+        layers.register("other", 1)
 
 
-@tool(name="other_value", produces=[Value], priority=10)
-async def make_other_value() -> Value:
-    return Value("b")
-
-
-def test_register_get_and_find_producers() -> None:
-    registry = ToolRegistry()
-    registry.register(make_value)
-    registry.register(make_other_value)
-
-    assert registry.get("make_value") is make_value
-    assert [item.spec.name for item in registry.all()] == ["make_value", "other_value"]
-    assert [item.spec.name for item in registry.producers_of(Value)] == [
-        "other_value",
-        "make_value",
-    ]
-    assert registry.producers_of(ArtifactKey.of(str)) == []
-
-
-def test_duplicate_and_missing_tools_use_domain_errors() -> None:
-    registry = ToolRegistry()
-    registry.register(make_value)
+def test_tool_registry_is_deterministic_and_unique() -> None:
+    tools = ToolRegistry()
+    tools.register(reader)
+    assert tools.get("reader") is reader
+    assert tools.in_layer("read") == (reader,)
 
     with pytest.raises(DuplicateToolError):
-        registry.register(make_value)
-    with pytest.raises(ToolNotFoundError):
-        registry.get("missing")
+        tools.register(reader)
