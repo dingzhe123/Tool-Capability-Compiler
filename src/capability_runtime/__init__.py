@@ -1,48 +1,41 @@
-"""Public API for the typed dependency graph MVP."""
+"""Public API for the layered tool-topology MVP."""
 
-from .core.artifact import ArtifactKey
-from .core.errors import (
-    ArtifactConflictError,
-    ArtifactNotFoundError,
-    CyclicDependencyError,
+from .core import (
+    DuplicateLayerError,
     DuplicateToolError,
-    GraphRuntimeError,
-    InvalidExecutionPlanError,
-    InvalidToolOutputError,
-    MissingProducerError,
-    MissingRuntimeInputError,
-    ToolExecutionError,
+    InvalidTopologyReferenceError,
+    Layer,
+    LayerNotFoundError,
+    RegistrationError,
+    RouteValidationError,
+    ToolNode,
     ToolNotFoundError,
-    ToolRegistrationError,
-    UnsatisfiedDependencyError,
+    TopologyBuildError,
+    TopologyFrameworkError,
 )
 from .decorators import tool
-from .graph import DependencyGraph, DependencyGraphBuilder
-from .planner import ExecutionPlan, Goal, Planner
-from .registry import ToolRegistry
-from .runtime import Runtime
+from .registry import LayerRegistry, ToolRegistry
+from .route import RoutePlan
+from .topology import ToolEdge, Topology, TopologyBuilder, TopologyValidationWarning
 
 __all__ = [
-    "ArtifactConflictError",
-    "ArtifactNotFoundError",
-    "ArtifactKey",
-    "CyclicDependencyError",
-    "DependencyGraph",
-    "DependencyGraphBuilder",
+    "DuplicateLayerError",
     "DuplicateToolError",
-    "ExecutionPlan",
-    "Goal",
-    "GraphRuntimeError",
-    "InvalidExecutionPlanError",
-    "InvalidToolOutputError",
-    "MissingProducerError",
-    "MissingRuntimeInputError",
-    "Planner",
-    "Runtime",
-    "ToolExecutionError",
+    "InvalidTopologyReferenceError",
+    "Layer",
+    "LayerNotFoundError",
+    "LayerRegistry",
+    "RegistrationError",
+    "RoutePlan",
+    "RouteValidationError",
+    "ToolEdge",
+    "ToolNode",
     "ToolNotFoundError",
-    "ToolRegistrationError",
     "ToolRegistry",
-    "UnsatisfiedDependencyError",
+    "Topology",
+    "TopologyBuildError",
+    "TopologyBuilder",
+    "TopologyFrameworkError",
+    "TopologyValidationWarning",
     "tool",
 ]

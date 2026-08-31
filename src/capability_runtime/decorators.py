@@ -2,52 +2,43 @@ from __future__ import annotations
 
 import inspect
 from collections.abc import Awaitable, Callable, Iterable
-from dataclasses import dataclass
 from typing import Any
 
-from .core.artifact import ArtifactKey, ArtifactLike, artifact_key
-from .core.errors import ToolRegistrationError
-from .core.tool import ToolSpec
-
-
-@dataclass(frozen=True, slots=True)
-class PythonTool:
-    spec: ToolSpec
-    _function: Callable[..., Awaitable[Any]]
-
-    async def execute(self, inputs: dict[ArtifactKey, Any]) -> dict[ArtifactKey, Any]:
-        arguments = [inputs[key] for key in self.spec.consumes]
-        result = await self._function(*arguments)
-        return {self.spec.produces[0]: result}
-
-    @property
-    def __name__(self) -> str:
-        return self.spec.name
+from .core.errors import RegistrationError
+from .core.tool import NodeSelector, SelectorInput, ToolNode, ToolSpec
 
 
 def tool(
     *,
-    consumes: Iterable[ArtifactLike] = (),
-    produces: Iterable[ArtifactLike],
+    layer: str,
+    providers: SelectorInput = "all",
+    workers: SelectorInput = "all",
+    consumes: Iterable[type] = (),
+    produces: Iterable[type] = (),
     name: str | None = None,
-    priority: int = 0,
-) -> Callable[[Callable[..., Awaitable[Any]]], PythonTool]:
-    """Turn an async Python function into a single-output Tool."""
+    description: str = "",
+) -> Callable[[Callable[..., Awaitable[Any]]], ToolNode]:
+    """Declare a node in the layered tool-routing search space."""
 
-    consume_keys = tuple(artifact_key(item) for item in consumes)
-    produce_keys = tuple(artifact_key(item) for item in produces)
+    consume_types = tuple(consumes)
+    produce_types = tuple(produces)
+    if not layer.strip():
+        raise RegistrationError("Tool layer cannot be empty")
+    if any(not isinstance(item, type) for item in (*consume_types, *produce_types)):
+        raise RegistrationError("Tool schemas must contain Python types")
+    if len(set(consume_types)) != len(consume_types):
+        raise RegistrationError("A tool cannot consume the same schema twice")
+    if len(set(produce_types)) != len(produce_types):
+        raise RegistrationError("A tool cannot produce the same schema twice")
+    provider_selector = NodeSelector.parse(providers)
+    worker_selector = NodeSelector.parse(workers)
 
-    if len(produce_keys) != 1:
-        raise ToolRegistrationError("Phase 1 tools must declare exactly one output")
-    if len(set(consume_keys)) != len(consume_keys):
-        raise ToolRegistrationError("A tool cannot consume the same artifact twice")
-
-    def decorate(function: Callable[..., Awaitable[Any]]) -> PythonTool:
+    def decorate(function: Callable[..., Awaitable[Any]]) -> ToolNode:
         if not inspect.iscoroutinefunction(function):
-            raise ToolRegistrationError(f"Tool function must be async: {function.__name__}")
+            raise RegistrationError(f"Tool function must be async: {function.__name__}")
         tool_name = name or function.__name__
-        if not tool_name or not tool_name.strip():
-            raise ToolRegistrationError("Tool name cannot be empty")
+        if not tool_name.strip():
+            raise RegistrationError("Tool name cannot be empty")
         signature = inspect.signature(function)
         positional = [
             parameter
@@ -55,14 +46,22 @@ def tool(
             if parameter.kind
             in (parameter.POSITIONAL_ONLY, parameter.POSITIONAL_OR_KEYWORD)
         ]
-        if len(positional) != len(consume_keys):
-            raise ToolRegistrationError(
-                f"Tool {tool_name} declares {len(consume_keys)} inputs but has "
-                f"{len(positional)} positional parameters"
+        if len(positional) != len(consume_types):
+            raise RegistrationError(
+                f"Tool {tool_name} declares {len(consume_types)} schema inputs but "
+                f"has {len(positional)} positional parameters"
             )
-        return PythonTool(
-            spec=ToolSpec(tool_name, consume_keys, produce_keys, priority),
-            _function=function,
+        return ToolNode(
+            spec=ToolSpec(
+                name=tool_name,
+                layer=layer,
+                providers=provider_selector,
+                workers=worker_selector,
+                consumes=consume_types,
+                produces=produce_types,
+                description=description.strip(),
+            ),
+            handler=function,
         )
 
     return decorate

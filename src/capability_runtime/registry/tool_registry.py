@@ -1,42 +1,28 @@
 from __future__ import annotations
 
-import logging
-
-from ..core.artifact import ArtifactKey, ArtifactLike, artifact_key
-from ..core.errors import DuplicateToolError, ToolNotFoundError, ToolRegistrationError
-from ..core.tool import Tool
-
-logger = logging.getLogger(__name__)
+from ..core.errors import DuplicateToolError, RegistrationError, ToolNotFoundError
+from ..core.tool import ToolNode
 
 
 class ToolRegistry:
     def __init__(self) -> None:
-        self._tools_by_name: dict[str, Tool] = {}
-        self._producers_by_artifact: dict[ArtifactKey, list[Tool]] = {}
+        self._tools: dict[str, ToolNode] = {}
 
-    def register(self, registered_tool: Tool) -> None:
-        if not isinstance(registered_tool, Tool):
-            raise ToolRegistrationError("Registered value does not implement Tool")
-        name = registered_tool.spec.name
-        if name in self._tools_by_name:
-            raise DuplicateToolError(name)
-        self._tools_by_name[name] = registered_tool
-        for produced in registered_tool.spec.produces:
-            self._producers_by_artifact.setdefault(produced, []).append(registered_tool)
-        logger.debug("tool registered: %s", name)
+    def register(self, node: ToolNode) -> None:
+        if not isinstance(node, ToolNode):
+            raise RegistrationError("Registered value must be a ToolNode")
+        if node.spec.name in self._tools:
+            raise DuplicateToolError(f"Tool already registered: {node.spec.name}")
+        self._tools[node.spec.name] = node
 
-    def get(self, name: str) -> Tool:
+    def get(self, name: str) -> ToolNode:
         try:
-            return self._tools_by_name[name]
+            return self._tools[name]
         except KeyError as exc:
-            raise ToolNotFoundError(name) from exc
+            raise ToolNotFoundError(f"Tool not found: {name}") from exc
 
-    def all(self) -> list[Tool]:
-        return [self._tools_by_name[name] for name in sorted(self._tools_by_name)]
+    def all(self) -> tuple[ToolNode, ...]:
+        return tuple(self._tools[name] for name in sorted(self._tools))
 
-    def producers_of(self, artifact: ArtifactLike) -> list[Tool]:
-        key = artifact_key(artifact)
-        return sorted(
-            self._producers_by_artifact.get(key, ()),
-            key=lambda candidate: (-candidate.spec.priority, candidate.spec.name),
-        )
+    def in_layer(self, layer: str) -> tuple[ToolNode, ...]:
+        return tuple(node for node in self.all() if node.spec.layer == layer)
