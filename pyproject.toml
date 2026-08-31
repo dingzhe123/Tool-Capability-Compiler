@@ -1,7 +1,18 @@
 [project]
 name = "tool-capability-compiler"
 version = "0.1.0"
-description = "Add your description here"
+description = "A typed dependency graph runtime for composable tools"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = []
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/capability_runtime"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
