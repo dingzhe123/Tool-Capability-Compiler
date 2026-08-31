@@ -2347,6 +2347,16 @@ Coverage
 
 # 68. Phase 2 开发顺序
 
+当前实现状态：
+
+```text
+Step 1  COMPLETE
+Step 2  COMPLETE
+Step 3+ NOT STARTED
+```
+
+本状态只表示代码落地进度，不改变后续步骤的验收要求。
+
 建议：
 
 ## Step 1

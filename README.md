@@ -17,6 +17,13 @@ Declare → Initialize → Explore → Evaluate → Prune → Rank → Route
 - Schema 可执行性告警，不以 Schema 建边
 - 支持一层多个节点的 RoutePlan 及拓扑约束校验
 
+Phase 2 当前已完成 Step 1/2：
+
+- Tool 可声明一个或多个规范化 Capability
+- CapabilityRegistry 提供 Tool ↔ Capability 多对多索引
+- Scenario / ScenarioSuite 同时支持 Gold 与 Query-only 数据
+- ScenarioLoader 对 JSON Dataset 进行严格校验
+
 ## Quick start
 
 ```python
@@ -24,7 +31,11 @@ from capability_runtime import (
     LayerRegistry, RoutePlan, ToolRegistry, TopologyBuilder, tool,
 )
 
-@tool(layer="read", workers=["policy_check"])
+@tool(
+    layer="read",
+    workers=["policy_check"],
+    capabilities={"order.read", "order.search"},
+)
 async def database(): ...
 
 @tool(
@@ -52,6 +63,17 @@ route = RoutePlan.from_groups(
     [{"database"}, {"policy_check"}, {"refund"}],
 )
 print(route.explain())
+```
+
+加载业务场景：
+
+```python
+from capability_runtime import CapabilityRegistry, ScenarioLoader
+
+capabilities = CapabilityRegistry.from_tools(tools)
+assert capabilities.providers("order.read") == ("database",)
+
+suite = ScenarioLoader().load_file("examples/scenarios/refund.json")
 ```
 
 建边公式：
